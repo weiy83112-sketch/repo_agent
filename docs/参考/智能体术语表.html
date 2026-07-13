@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agent 术语表</title>
+    <link rel="stylesheet" href="../素材/统一样式.css" />
+  </head>
+  <body>
+    <main>
+      <article>
+        <p class="eyebrow">Reference</p>
+        <h1>Agent 术语表（Agent Glossary）</h1>
+        <p class="subtitle">主中文，保留英文。以后看文档、读源码、面试都按这里的词来对齐。</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>中文</th>
+              <th>English</th>
+              <th>一句话解释</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>智能体</td>
+              <td>Agent</td>
+              <td>能根据目标选择步骤、调用工具、观察结果并继续行动的 LLM 应用。</td>
+            </tr>
+            <tr>
+              <td>状态机</td>
+              <td>State Machine</td>
+              <td>把 Agent 的工作流程拆成状态、步骤和流转规则。</td>
+            </tr>
+            <tr>
+              <td>状态</td>
+              <td>State</td>
+              <td>一次任务执行过程中携带和更新的上下文。</td>
+            </tr>
+            <tr>
+              <td>消息列表</td>
+              <td>Messages</td>
+              <td>保存在 State 中的对话轨迹，记录用户输入、模型回复、工具调用和工具结果。</td>
+            </tr>
+            <tr>
+              <td>用户消息</td>
+              <td>HumanMessage</td>
+              <td>表示用户输入的一条消息。</td>
+            </tr>
+            <tr>
+              <td>模型消息</td>
+              <td>AIMessage</td>
+              <td>表示模型输出的一条消息，可以是最终回答，也可以携带 tool_call。</td>
+            </tr>
+            <tr>
+              <td>节点</td>
+              <td>Node</td>
+              <td>状态机中的一个处理步骤。</td>
+            </tr>
+            <tr>
+              <td>边</td>
+              <td>Edge</td>
+              <td>节点之间的连接规则。</td>
+            </tr>
+            <tr>
+              <td>条件边</td>
+              <td>Conditional Edge</td>
+              <td>根据 State 里的结果决定下一步去哪。</td>
+            </tr>
+            <tr>
+              <td>模型路由</td>
+              <td>Model Router</td>
+              <td>根据任务类型选择 simple、complex、planning 等模型能力。</td>
+            </tr>
+            <tr>
+              <td>模型提供者</td>
+              <td>Model Provider</td>
+              <td>封装具体模型厂商或模型服务的调用方式。</td>
+            </tr>
+            <tr>
+              <td>工具调用</td>
+              <td>Tool Calling</td>
+              <td>让模型选择工具名和参数，由程序执行外部函数、API、文件系统或命令。</td>
+            </tr>
+            <tr>
+              <td>工具注册表</td>
+              <td>Tool Registry</td>
+              <td>记录系统有哪些工具、每个工具做什么、需要什么参数、返回什么结果。</td>
+            </tr>
+            <tr>
+              <td>参数结构</td>
+              <td>Schema</td>
+              <td>描述工具参数的字段、类型和约束，让模型输出程序能理解的参数。</td>
+            </tr>
+            <tr>
+              <td>结构化输出</td>
+              <td>Structured Output</td>
+              <td>让模型按 schema 输出程序可解析的数据，例如 JSON、枚举值或工具调用参数。</td>
+            </tr>
+            <tr>
+              <td>工具调用请求</td>
+              <td>Tool Call</td>
+              <td>模型按结构化格式表达“我要调用哪个工具，以及传什么参数”。</td>
+            </tr>
+            <tr>
+              <td>工具消息</td>
+              <td>Tool Message</td>
+              <td>程序执行工具后，把结果按对应工具调用编号返回给模型的消息。</td>
+            </tr>
+            <tr>
+              <td>工具结果</td>
+              <td>Tool Result</td>
+              <td>工具执行后返回给 Agent 的真实观察结果。</td>
+            </tr>
+            <tr>
+              <td>检索增强生成</td>
+              <td>RAG</td>
+              <td>先检索外部知识，再把检索结果交给模型生成答案。</td>
+            </tr>
+            <tr>
+              <td>记忆</td>
+              <td>Memory</td>
+              <td>让 Agent 在一次或多次交互中保留有用上下文。</td>
+            </tr>
+            <tr>
+              <td>检查点</td>
+              <td>Checkpoint</td>
+              <td>保存 Agent 执行过程，方便恢复、调试或人工介入。</td>
+            </tr>
+            <tr>
+              <td>人工介入</td>
+              <td>Human-in-the-loop</td>
+              <td>在关键步骤让人确认、修改或批准 Agent 的行为。</td>
+            </tr>
+            <tr>
+              <td>评估</td>
+              <td>Evaluation</td>
+              <td>用测试样例、指标或人工标准判断 Agent 是否可靠。</td>
+            </tr>
+            <tr>
+              <td>开发者工具</td>
+              <td>DevTools</td>
+              <td>浏览器提供的调试工具，用来看页面结构、报错、网络请求和存储。</td>
+            </tr>
+            <tr>
+              <td>元素面板</td>
+              <td>Elements</td>
+              <td>查看和临时修改 HTML、CSS、页面布局。</td>
+            </tr>
+            <tr>
+              <td>控制台</td>
+              <td>Console</td>
+              <td>查看前端报错，临时执行 JavaScript。</td>
+            </tr>
+            <tr>
+              <td>网络面板</td>
+              <td>Network</td>
+              <td>查看前端请求了哪些接口、状态码和响应内容。</td>
+            </tr>
+            <tr>
+              <td>来源</td>
+              <td>Origin</td>
+              <td>浏览器判断安全边界的单位，通常由协议、域名和端口组成。</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="nav">
+          <a href="智能体知识图谱.html">知识图谱</a>
+          <a href="../课程/0001-智能体状态机.html">第一课</a>
+        </div>
+      </article>
+    </main>
+  </body>
+</html>

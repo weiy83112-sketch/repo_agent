@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>0006 - Agent 为什么需要 messages</title>
+    <link rel="stylesheet" href="../素材/统一样式.css" />
+  </head>
+  <body>
+    <main>
+      <article>
+        <p class="eyebrow">Lesson 0006</p>
+        <h1>Agent 为什么需要 messages</h1>
+        <p class="subtitle">
+          这一课不先背 LangGraph 名词。我们从你的真实目标出发：把 GitHub 上的开源 Agent 项目放进
+          <code>source/</code>，然后让 Agent 帮你读源码、读 README、总结怎么运行。
+        </p>
+
+        <div class="callout">
+          <strong>一句话：</strong>
+          <code>messages</code> 就是 Agent 的工作记录本，记录“用户问了什么、模型想做什么、工具查到了什么、模型最后怎么回答”。
+        </div>
+
+        <h2>1. 先回忆前几课</h2>
+        <p>前面几课其实已经拼出了半个 Agent：</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>知识点</th>
+              <th>你可以先这样理解</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>State</td>
+              <td>Agent 做任务时携带的上下文。</td>
+            </tr>
+            <tr>
+              <td>Tool Calling</td>
+              <td>模型判断自己需要调用工具。</td>
+            </tr>
+            <tr>
+              <td>Tool Registry</td>
+              <td>告诉模型有哪些工具可以用。</td>
+            </tr>
+            <tr>
+              <td>Structured Output</td>
+              <td>让模型按固定格式输出工具名和参数。</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p>现在还差一个问题：这些过程发生以后，Agent 把它们记在哪里？答案就是 <code>messages</code>。</p>
+
+        <h2>2. 真实学习场景</h2>
+        <p>假设你以后把一个开源 Agent 项目放到：</p>
+
+        <pre><code>source/openhands/</code></pre>
+
+        <p>然后你问自己的 Agent：</p>
+
+        <pre><code>帮我看看 source/openhands 这个项目怎么启动</code></pre>
+
+        <p>Agent 不能凭空回答。它应该先想：我要看这个项目的 README。</p>
+
+        <pre><code>read_file("source/openhands/README.md")</code></pre>
+
+        <p>工具读完 README 后，Agent 再根据真实内容回答你。</p>
+
+        <h2>3. Agent 内部发生的四步</h2>
+        <pre><code>第 1 步：保存用户问题
+第 2 步：模型决定调用 read_file
+第 3 步：程序执行 read_file，拿到 README 内容
+第 4 步：模型根据 README 内容回答用户</code></pre>
+
+        <p><code>messages</code> 的作用，就是把这四步一条一条记下来。</p>
+
+        <h2>4. 先用普通 Python 表示</h2>
+        <p>先不要管 LangChain 类名。我们只用 Python 的 <code>list</code> 和 <code>dict</code> 来理解。</p>
+
+        <pre><code>messages = []
+
+messages.append({
+    "role": "user",
+    "content": "帮我看看 source/openhands 这个项目怎么启动"
+})
+
+messages.append({
+    "role": "assistant",
+    "tool_call": {
+        "name": "read_file",
+        "args": {
+            "path": "source/openhands/README.md"
+        }
+    }
+})
+
+messages.append({
+    "role": "tool",
+    "content": "README 里说启动命令是 docker compose up"
+})
+
+messages.append({
+    "role": "assistant",
+    "content": "这个项目可以通过 docker compose up 启动。"
+})</code></pre>
+
+        <h2>5. 一行一行看</h2>
+        <p><code>messages = []</code>：创建一个空列表。这个列表就是 Agent 的工作记录本。</p>
+
+        <p><code>messages.append({...})</code>：往记录本里新增一条记录。</p>
+
+        <p><code>"role": "user"</code>：说明这条记录来自用户。</p>
+
+        <p><code>"content": "帮我看看 source/openhands 这个项目怎么启动"</code>：这是用户原始问题。</p>
+
+        <p><code>"role": "assistant"</code>：说明这条记录来自模型。</p>
+
+        <p><code>"tool_call": {...}</code>：模型这次不是直接回答，而是说“我要调用一个工具”。</p>
+
+        <p><code>"name": "read_file"</code>：模型选择的工具名是 <code>read_file</code>。</p>
+
+        <p><code>"args": {...}</code>：模型给工具准备的参数。</p>
+
+        <p><code>"path": "source/openhands/README.md"</code>：模型希望程序读取这个 README 文件。</p>
+
+        <p><code>"role": "tool"</code>：说明这条记录来自工具执行结果。</p>
+
+        <p><code>"content": "README 里说启动命令是 docker compose up"</code>：这是工具读文件后返回的真实信息。</p>
+
+        <p>最后一条 <code>"role": "assistant"</code>：模型看到了工具结果，所以现在可以回答用户。</p>
+
+        <h2>6. messages 到底是什么</h2>
+        <p>现在可以给 <code>messages</code> 下定义了：</p>
+
+        <pre><code>messages = [
+  用户问题,
+  模型动作,
+  工具结果,
+  模型回答
+]</code></pre>
+
+        <p>所以它不是一个难词。它就是 Agent 运行过程的记录。</p>
+
+        <div class="callout">
+          普通聊天只需要记“用户说了什么、模型回了什么”。Agent 还要记“模型调用了什么工具、工具返回了什么结果”。
+        </div>
+
+        <h2>7. 再对应到 LangChain 名词</h2>
+        <p>理解了普通版本，再看 LangChain 术语就不吓人了。</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>普通理解</th>
+              <th>LangChain 名词</th>
+              <th>含义</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>role: user</code></td>
+              <td><code>HumanMessage</code></td>
+              <td>用户发来的消息。</td>
+            </tr>
+            <tr>
+              <td><code>role: assistant</code>，带 <code>tool_call</code></td>
+              <td><code>AIMessage</code></td>
+              <td>模型发出的消息，可以包含工具调用请求。</td>
+            </tr>
+            <tr>
+              <td><code>role: tool</code></td>
+              <td><code>ToolMessage</code></td>
+              <td>工具执行后的结果消息。</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>8. 放回 Agent State</h2>
+        <p>在 Agent 里，<code>messages</code> 通常会放进 <code>state</code>：</p>
+
+        <pre><code>state = {
+    "messages": messages
+}</code></pre>
+
+        <p><code>state</code> 是整个任务状态。</p>
+        <p><code>messages</code> 是状态里最重要的一部分。</p>
+        <p>下一个节点看到 <code>state["messages"]</code>，就知道前面发生了什么。</p>
+
+        <h2>9. 和你的项目路线的关系</h2>
+        <pre><code>source/
+  -> 放 GitHub 开源 Agent 项目
+
+docs/
+  -> 记录你从开源项目里学到的知识
+
+project/
+  -> 写你自己的 Agent 项目</code></pre>
+
+        <p>所以后面我们不应该只抽象学概念，而应该围绕 <code>source/</code> 里的真实开源项目来学。</p>
+
+        <h2>10. 面试表达</h2>
+        <div class="callout">
+          我理解 Agent 的 messages 不是普通聊天记录，而是完整的执行轨迹。它会记录用户问题、模型发出的工具调用、工具返回的观察结果，以及模型基于观察结果生成的最终回答。这样后续节点和模型都能根据 State 里的 messages 继续推理。
+        </div>
+
+        <h2>11. 检查自己是否理解</h2>
+        <details>
+          <summary>问题 1：messages 为什么不只是聊天记录？</summary>
+          <p>因为 Agent 还需要记录工具调用和工具结果，不只是用户和模型的普通对话。</p>
+        </details>
+        <details>
+          <summary>问题 2：模型为什么不能直接回答 source/openhands 怎么启动？</summary>
+          <p>因为它需要先读取真实 README，工具结果比凭空猜测更可靠。</p>
+        </details>
+        <details>
+          <summary>问题 3：ToolMessage 对应普通版本里的哪一类记录？</summary>
+          <p>对应 <code>role: tool</code> 的记录，也就是工具执行后的真实结果。</p>
+        </details>
+
+        <h2>推荐阅读</h2>
+        <ul>
+          <li><a href="https://docs.langchain.com/oss/python/langchain/messages">LangChain Messages 官方文档</a></li>
+          <li><a href="https://docs.langchain.com/oss/python/langgraph/quickstart">LangGraph Quickstart</a></li>
+        </ul>
+
+        <div class="nav">
+          <a href="../首页.html">首页</a>
+          <a href="../课程/0005-结构化输出.html">上一课</a>
+          <a href="../参考/智能体知识图谱.html">知识图谱</a>
+          <a href="../参考/智能体术语表.html">术语表</a>
+        </div>
+      </article>
+    </main>
+  </body>
+</html>

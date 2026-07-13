@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>0005 - 结构化输出（Structured Output）</title>
+    <link rel="stylesheet" href="../素材/统一样式.css" />
+  </head>
+  <body>
+    <main>
+      <article>
+        <p class="eyebrow">Lesson 0005</p>
+        <h1>结构化输出（Structured Output）</h1>
+        <p class="subtitle">
+          上一课讲了工具注册表。现在继续往下看：模型不只要“想对”，还要把结果写成程序能稳定读取的格式。
+        </p>
+
+        <div class="callout">
+          <strong>一句话：</strong>
+          结构化输出就是让模型按固定结构返回结果，例如 JSON、枚举值、工具调用参数，而不是随便写一段自然语言。
+        </div>
+
+        <h2>1. 为什么需要结构化输出</h2>
+        <p>如果模型只返回一句话，程序很难稳定判断下一步该做什么。</p>
+
+        <pre><code>我觉得这个问题可能是调试错误，建议先看看日志。</code></pre>
+
+        <p>这句话人能看懂，但程序不好读。程序更喜欢这种结果：</p>
+
+        <pre><code>{
+  "task_type": "debug_error",
+  "reason": "用户在询问项目报错原因"
+}</code></pre>
+
+        <p>这样程序可以直接读取 <code>task_type</code>，然后进入对应流程。</p>
+
+        <h2>2. 先看一个最小例子</h2>
+        <p>假设我们希望模型判断用户问题属于哪类任务：</p>
+
+        <pre><code>{
+  "task_type": "debug_error",
+  "reason": "用户提到启动失败，需要排查错误"
+}</code></pre>
+
+        <p>这个结果里有两个字段：</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>字段</th>
+              <th>含义</th>
+              <th>程序怎么用</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>task_type</code></td>
+              <td>任务类型</td>
+              <td>决定下一步走哪个节点。</td>
+            </tr>
+            <tr>
+              <td><code>reason</code></td>
+              <td>判断理由</td>
+              <td>方便调试和人工检查。</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>3. 逐行看程序怎么读取</h2>
+        <pre><code>model_output = {
+    "task_type": "debug_error",
+    "reason": "用户提到启动失败，需要排查错误"
+}
+
+task_type = model_output["task_type"]
+
+if task_type == "debug_error":
+    next_node = "choose_tool"
+else:
+    next_node = "final_answer"</code></pre>
+
+        <p><code>model_output = {...}</code>：模拟模型返回的结构化结果。</p>
+        <p><code>task_type = model_output["task_type"]</code>：程序从结果里取出任务类型。</p>
+        <p><code>if task_type == "debug_error":</code>：如果是调试问题，就进入工具流程。</p>
+        <p><code>next_node = "choose_tool"</code>：下一步去选择工具，比如读日志、读配置、搜索代码。</p>
+        <p><code>else:</code>：如果不是调试问题，就走普通回答流程。</p>
+
+        <h2>4. Schema 的作用</h2>
+        <p>结构化输出通常会配一个 schema，用来告诉模型字段应该长什么样。</p>
+
+        <pre><code>{
+  "task_type": {
+    "type": "string",
+    "enum": ["run_project", "debug_error", "explain_code", "make_plan"]
+  },
+  "reason": {
+    "type": "string"
+  }
+}</code></pre>
+
+        <p>这里的重点是 <code>enum</code>。它告诉模型：<code>task_type</code> 只能从这几个固定值里选。</p>
+
+        <pre><code>run_project   启动或运行项目
+debug_error   排查报错
+explain_code  解释代码
+make_plan     制定计划</code></pre>
+
+        <h2>5. 和工具注册表的关系</h2>
+        <p>工具注册表也在使用结构化输出思想。</p>
+
+        <pre><code>{
+  "tool_name": "read_file",
+  "arguments": {
+    "path": "README.md"
+  }
+}</code></pre>
+
+        <p>这里模型不是随便说“我想读 README”，而是按工具 schema 输出：</p>
+
+        <pre><code>工具名 = read_file
+参数 = path: README.md</code></pre>
+
+        <p>程序拿到这个结构，就能找到真实函数并执行。</p>
+
+        <h2>6. 在 Agent 里的位置</h2>
+        <pre><code>用户问题
+  -> 模型按 schema 输出结构化结果
+  -> 程序读取字段
+  -> 条件边根据字段选择下一步
+  -> 节点执行对应逻辑</code></pre>
+
+        <p>所以结构化输出经常用于三类地方：</p>
+
+        <ul>
+          <li>任务分类：判断是运行项目、调试错误、解释代码，还是制定计划。</li>
+          <li>工具调用：输出工具名和参数。</li>
+          <li>结果校验：让模型按固定字段返回结论、证据和置信度。</li>
+        </ul>
+
+        <h2>7. 面试表达</h2>
+        <div class="callout">
+          我会用结构化输出约束模型返回程序可解析的数据，比如任务类型、工具名、参数和判断理由。
+          这样 Agent 的状态机不用解析自然语言，而是根据固定字段进行条件路由和工具执行。
+        </div>
+
+        <h2>8. 检查自己是否理解</h2>
+        <details>
+          <summary>问题 1：结构化输出解决什么问题？</summary>
+          <p>解决模型输出太自由，程序不好稳定解析的问题。</p>
+        </details>
+        <details>
+          <summary>问题 2：为什么 task_type 最好用固定枚举？</summary>
+          <p>因为程序需要稳定判断下一步，固定枚举比开放文本更可靠。</p>
+        </details>
+        <details>
+          <summary>问题 3：工具调用为什么也是结构化输出？</summary>
+          <p>因为模型要按固定结构输出工具名和参数，程序才能找到函数并执行。</p>
+        </details>
+
+        <h2>推荐阅读</h2>
+        <ul>
+          <li><a href="https://docs.langchain.com/oss/python/langchain/structured-output">LangChain Structured Output 官方文档</a></li>
+          <li><a href="https://docs.langchain.com/oss/python/langchain/tools">LangChain Tools 官方文档</a></li>
+        </ul>
+
+        <div class="nav">
+          <a href="../首页.html">首页</a>
+          <a href="../课程/0004-工具注册表.html">上一课</a>
+          <a href="../参考/智能体知识图谱.html">知识图谱</a>
+          <a href="../参考/智能体术语表.html">术语表</a>
+        </div>
+      </article>
+    </main>
+  </body>
+</html>

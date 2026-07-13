@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>0004 - 工具注册表（Tool Registry）</title>
+    <link rel="stylesheet" href="../素材/统一样式.css" />
+  </head>
+  <body>
+    <main>
+      <article>
+        <p class="eyebrow">Lesson 0004</p>
+        <h1>工具注册表（Tool Registry）</h1>
+        <p class="subtitle">
+          上一课讲了“模型决定调用工具，程序真正执行工具”。这一课讲下一层问题：
+          模型怎么知道系统里有哪些工具、每个工具该怎么用？
+        </p>
+
+        <div class="callout">
+          <strong>一句话：</strong>
+          工具注册表就是一张“工具说明书”，告诉模型有哪些工具、每个工具做什么、需要哪些参数。
+        </div>
+
+        <h2>1. 为什么需要工具注册表</h2>
+        <p>
+          模型不是自动知道你的项目里有 <code>read_file</code>、<code>list_files</code> 这些函数。
+          如果你不告诉它，它就不知道可以调用什么。
+        </p>
+
+        <p>所以我们要把工具整理成一张清单，交给模型：</p>
+
+        <pre><code>可用工具:
+- list_files(path): 列出目录下的文件
+- read_file(path): 读取文本文件内容
+- search_text(query): 搜索项目中的关键词
+- run_command(command): 执行允许的命令</code></pre>
+
+        <h2>2. 一个工具需要三类信息</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>信息</th>
+              <th>英文</th>
+              <th>作用</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>工具名</td>
+              <td>Name</td>
+              <td>模型用这个名字选择工具，例如 <code>read_file</code>。</td>
+            </tr>
+            <tr>
+              <td>工具描述</td>
+              <td>Description</td>
+              <td>告诉模型什么时候应该用这个工具。</td>
+            </tr>
+            <tr>
+              <td>参数结构</td>
+              <td>Schema</td>
+              <td>告诉模型要传哪些参数、参数是什么类型。</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>3. 以 read_file 为例</h2>
+        <p>真实函数可能长这样：</p>
+
+        <pre><code>def read_file(path: str) -> str:
+    """读取一个文本文件，并返回文件内容。"""
+    ...</code></pre>
+
+        <p>给模型看的工具说明可以理解成：</p>
+
+        <pre><code>{
+  "name": "read_file",
+  "description": "读取一个文本文件，并返回文件内容。",
+  "parameters": {
+    "path": {
+      "type": "string",
+      "description": "要读取的文件路径，例如 README.md"
+    }
+  }
+}</code></pre>
+
+        <p>
+          模型看到用户问“这个项目怎么运行？”，就可能判断：我需要看 README，
+          所以选择 <code>read_file</code>，参数是 <code>{"path": "README.md"}</code>。
+        </p>
+
+        <h2>4. 工具注册表在 Agent 流程里的位置</h2>
+        <pre><code>用户问题
+  -> 模型读取工具注册表
+  -> 模型选择工具名和参数
+  -> 程序执行工具
+  -> 工具结果写回 State
+  -> 模型继续分析</code></pre>
+
+        <p>
+          注意：工具注册表不是用来执行工具的。它只是告诉模型“有哪些工具可以选”。
+          真正执行工具的仍然是程序代码。
+        </p>
+
+        <h2>5. 为什么描述很重要</h2>
+        <p>工具描述写得差，模型就容易选错工具。</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>差的描述</th>
+              <th>好的描述</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>read_file: read file</code></td>
+              <td><code>read_file: 读取项目中的文本文件。适合查看 README、配置文件、源码片段。</code></td>
+            </tr>
+            <tr>
+              <td><code>search: search</code></td>
+              <td><code>search_text: 在项目文件中搜索关键词，并返回匹配文件和行号。</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>6. 工具注册表和结构化输出的关系</h2>
+        <p>
+          工具调用要求模型不要随便写一段话，而要输出稳定结构：
+        </p>
+
+        <pre><code>{
+  "tool_name": "read_file",
+  "arguments": {
+    "path": "README.md"
+  }
+}</code></pre>
+
+        <p>
+          这就是后面要学的结构化输出（Structured Output）的一种实际用途：
+          让模型输出程序能读懂的格式。
+        </p>
+
+        <h2>7. 面试表达</h2>
+        <div class="callout">
+          我会把工具能力注册成带名称、描述和参数 schema 的工具表。模型只负责根据用户问题选择工具和参数，
+          程序根据工具名找到真实函数并执行。这样既能让模型理解可用能力，又能通过参数 schema 和校验减少错误调用。
+        </div>
+
+        <h2>8. 检查自己是否理解</h2>
+        <details>
+          <summary>问题 1：工具注册表是给谁看的？</summary>
+          <p>主要是给模型看的，让模型知道有哪些工具、每个工具适合什么场景、需要什么参数。</p>
+        </details>
+        <details>
+          <summary>问题 2：工具注册表会真正执行工具吗？</summary>
+          <p>不会。它只是说明书。真正执行工具的是程序代码。</p>
+        </details>
+        <details>
+          <summary>问题 3：为什么参数 schema 重要？</summary>
+          <p>因为它约束模型必须给出程序能理解的参数，减少乱传参数和格式错误。</p>
+        </details>
+
+        <h2>推荐阅读</h2>
+        <ul>
+          <li><a href="https://docs.langchain.com/oss/python/langchain/tools">LangChain Tools 官方文档</a></li>
+          <li><a href="https://docs.langchain.com/oss/python/langgraph/quickstart">LangGraph Quickstart</a></li>
+        </ul>
+
+        <div class="nav">
+          <a href="../首页.html">首页</a>
+          <a href="../课程/0003-工具调用.html">上一课</a>
+          <a href="../参考/智能体知识图谱.html">知识图谱</a>
+          <a href="../参考/智能体术语表.html">术语表</a>
+        </div>
+      </article>
+    </main>
+  </body>
+</html>
