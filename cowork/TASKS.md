@@ -4,7 +4,7 @@
 
 - Maintain Agent learning materials under `docs/`.
 - Continue teaching Agent concepts using HTML lessons and reference pages.
-- Current learning position: completed the CLI package, read-only file tools, manual verification against `source/`, virtual environment setup, and CLI module separation; next is the tool registry.
+- Current learning position: completed ModelRouter, Agent State, the ordinary Python Agent loop, and CLI integration; next is repeatable offline Agent-loop testing with a fake model router.
 - Keep cowork decisions updated when path conventions, model strategy, or architecture changes.
 - Keep future runnable Agent code under `project/` with English paths.
 - Keep open-source projects under `source/`.
@@ -33,7 +33,26 @@
 17. [Completed] User creates `tools/registry.py` and learns how a tool name maps to a real Python function before adding model-driven tool calling.
 18. [Completed] User enriches the registry with tool descriptions and parameter schemas so a model can understand when and how to call each tool.
 19. [Completed] User builds a tool executor that combines the protected `repo_path` with model-provided arguments and dynamically calls the registered function.
-20. [Current] User adds runtime argument validation and consistent tool errors before connecting model-generated tool calls.
+20. [Completed] Agent completes and verifies runtime argument validation for object shape, required arguments, unexpected arguments, and string types; expected tool input errors now use `ValueError`.
+21. [Completed] User understands the initial `ModelRouter` framework; agent creates and verifies `model_router.py` after the user approves the code.
+22. [Completed] Connect the first DeepSeek-backed `complex` capability without hardcoding the API key or coupling Agent workflow code to a concrete model name; real paid requests remain deferred.
+23. [Completed] Build and verify the ordinary Python Agent loop with tool calls, tool-result messages, final answers, and a maximum-step guard.
+24. [Completed] Connect natural-language CLI input to `run_agent()` while preserving the manual `/list`, `/read`, `/search`, and `/exit` commands.
+25. [Current] Build repeatable offline tests with a fake model router so the Agent loop can be verified without API balance.
+
+## Current Task Detail
+
+Goal:
+Verify the complete Agent loop offline with deterministic fake model responses, without sending a paid DeepSeek request.
+
+Manual action:
+The agent first explains dependency injection, fake responses, and assertions. The user then builds the main test structure; the agent may complete repetitive fake response objects and narrow test setup.
+
+Why:
+The Agent loop should be testable even when the external model is unavailable, has insufficient balance, or produces nondeterministic output.
+
+Verify:
+Tests cover a direct final answer, one tool call followed by a final answer, a tool error returned to the model, and the maximum-step guard. No test performs a network request.
 
 ## Task Format
 

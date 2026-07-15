@@ -14,6 +14,13 @@ Reason:
 - Separates learning material from future Agent code.
 - Makes the learning system easy to browse from `docs/首页.html`.
 
+Security constraint:
+
+- This repository must never store real API keys, access tokens, passwords, or other secrets in `docs/`, `project/`, `cowork/`, source code, examples, logs, or Git history.
+- Model credentials must be read from local environment variables such as `DEEPSEEK_API_KEY`.
+- Local `.env` files must remain ignored by Git. A committed `.env.example` may contain variable names and placeholder values only.
+- If a real credential is pasted into chat, source code, terminal output, logs, or a commit, treat it as exposed: revoke it and generate a replacement instead of reusing it.
+
 ## 0002 - Use Chinese filenames inside `docs/`
 
 Status: active
@@ -199,9 +206,13 @@ Agent responsibility:
 - After the user finishes, inspect the workspace and verify the result.
 - Only perform setup actions directly when the user explicitly asks the agent to do so.
 - When a task introduces a new concept, explain it in context before moving on.
+- Distinguish between framework-level work and small implementation details. The user manually builds major modules, core workflows, architectural seams, and other code that is important for understanding the project as a whole.
+- The agent may directly complete small details such as formatting fixes, repetitive parameter checks, narrow error handling, and other low-level glue code after explaining what changed.
+- When the agent completes a small detail, clearly mark the added or changed code and verify it. Do not omit required code or replace applicable code with `...`.
 
 Constraint:
 
 - Do not automatically download, clone, install, initialize, scaffold, or implement project assets unless the user explicitly requests agent execution.
 - For `source/` projects, the default behavior is: user manually places the project under `source/`, then the agent reads and explains it.
 - For `project/` implementation, the default behavior is: the agent explains what to create or type, the user performs the step, then the agent verifies and teaches from the result.
+- As an exception to the previous rule, the agent may directly implement small details under the responsibility rules above. Manual work should focus on the project's major structure and core Agent flow.

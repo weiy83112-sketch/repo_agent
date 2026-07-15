@@ -72,8 +72,44 @@ def get_tool(name: str):  # 根据工具名称查找并返回真实函数
     return TOOL_REGISTRY[name]  # 通过工具名称取得并返回真实函数
 
 
+# [Agent 补充的小细节] 根据工具名称取得参数 schema，供运行时校验使用
+def get_tool_parameters(name: str) -> dict:
+    for tool_schema in TOOL_SCHEMAS:  # 逐个检查给模型阅读的工具说明
+        function_schema = tool_schema["function"]  # 取得当前工具的函数说明
+
+        if function_schema["name"] == name:  # 找到名称相同的工具说明
+            return function_schema["parameters"]  # 返回它的参数规则
+
+    raise ValueError(f"tool schema not found: {name}")  # 注册表和 schema 不同步时主动报错
+
+
+# [Agent 补充的小细节] 按 TOOL_SCHEMAS 检查模型提供的参数
+def validate_tool_arguments(name: str, arguments: dict) -> None:
+    if not isinstance(arguments, dict):  # JSON object 解析到 Python 后必须是字典
+        raise ValueError("tool arguments must be an object")
+
+    parameters = get_tool_parameters(name)  # 取得当前工具的参数规则 会从TOOL_SCHEMAS中找到read_file规则
+    properties = parameters["properties"]  # 取得允许出现的参数及其类型
+    required = parameters["required"]  # 取得必须提供的参数名称
+    #所有不在agent给到的参数 缺失部分
+    missing = [key for key in required if key not in arguments]  # 找出缺少的必填参数
+    if missing:
+        raise ValueError(f"missing required tool arguments: {', '.join(missing)}")#用逗号链接起来
+
+    unexpected = [key for key in arguments if key not in properties]  # 找出 schema 未声明的参数
+    if unexpected:#这一步抛出传入的多余参数
+        raise ValueError(f"unexpected tool arguments: {', '.join(unexpected)}")
+
+    for key, value in arguments.items():  # 逐个检查已有参数的值类型
+        expected_type = properties[key]["type"]  # 读取 schema 声明的 JSON 类型
+
+        if expected_type == "string" and not isinstance(value, str):
+            raise ValueError(f"tool argument '{key}' must be a string")
+
+
 def execute_tool(repo_path: Path, name: str, arguments: dict):  # 执行模型选择的工具
     tool = get_tool(name)  # 通过工具名称取得真实的 Python 函数
+    validate_tool_arguments(name, arguments)  # 执行前先校验模型提供的参数
 
     # ** 会把字典拆成“参数名=参数值”，再与程序控制的 repo_path 一起传给函数
     return tool(repo_path=repo_path, **arguments)

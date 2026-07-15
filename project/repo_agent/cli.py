@@ -1,6 +1,8 @@
 import argparse  # 导入 Python 内置的命令行参数解析工具
 from pathlib import Path  # 导入 Path，用对象表示文件夹路径
 
+from .agent import run_agent  # 导入 Agent loop，将自然语言问题交给 Agent 处理
+from .model_router import ModelRouter  # 导入模型路由，供整个 CLI 会话重复使用
 from .tools.file_tools import list_files, read_file, search_text  # 导入三个只读工具
 
 
@@ -27,6 +29,7 @@ def parse_args() -> Path:  # 定义参数解析函数，返回仓库的 Path 对
 
 def main() -> None:  # 定义 CLI 程序的主函数
     repo_path = parse_args()  # 解析参数并得到目标仓库路径
+    router = ModelRouter()  # 创建一次模型路由；真正的 API 请求发生在 run_agent 内部
 
     print("repo-agent started")  # 提示用户程序已经启动
     print(f"target repo: {repo_path}")  # 显示 Agent 将要读取的仓库
@@ -79,4 +82,9 @@ def main() -> None:  # 定义 CLI 程序的主函数
 
             continue  # 搜索处理完成，等待下一次输入
 
-        print(f"you said: {question}")  # 暂时原样输出用户的问题
+        answer = run_agent(  # 普通自然语言输入交给 Agent loop 处理
+            repo_path=repo_path,  # 限制 Agent 只能读取指定仓库
+            question=question,  # 传入用户当前问题
+            router=router,  # 复用 CLI 启动时创建的模型路由
+        )
+        print(answer)  # 输出 Agent 根据仓库真实内容生成的最终回答

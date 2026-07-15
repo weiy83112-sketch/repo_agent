@@ -1,0 +1,11 @@
+# Local environment files may contain API keys and must not be committed.
+.env
+.env.*
+
+# A safe template may be committed when it contains placeholders only.
+!.env.example
+
+# Python-generated cache files are local build artifacts.
+__pycache__/
+*.py[cod]
+.pytest_cache/
