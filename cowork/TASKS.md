@@ -4,7 +4,7 @@
 
 - Maintain Agent learning materials under `docs/`.
 - Continue teaching Agent concepts using HTML lessons and reference pages.
-- Current learning position: completed ModelRouter, Agent State, the ordinary Python Agent loop, and CLI integration; next is repeatable offline Agent-loop testing with a fake model router.
+- Current learning position: completed ModelRouter, Agent State, the ordinary Python Agent loop, the LangGraph migration, and the LangGraph CLI connection; offline Agent-loop tests were skipped by user choice, and next is reliability work.
 - Keep cowork decisions updated when path conventions, model strategy, or architecture changes.
 - Keep future runnable Agent code under `project/` with English paths.
 - Keep open-source projects under `source/`.
@@ -38,21 +38,49 @@
 22. [Completed] Connect the first DeepSeek-backed `complex` capability without hardcoding the API key or coupling Agent workflow code to a concrete model name; real paid requests remain deferred.
 23. [Completed] Build and verify the ordinary Python Agent loop with tool calls, tool-result messages, final answers, and a maximum-step guard.
 24. [Completed] Connect natural-language CLI input to `run_agent()` while preserving the manual `/list`, `/read`, `/search`, and `/exit` commands.
-25. [Current] Build repeatable offline tests with a fake model router so the Agent loop can be verified without API balance.
+25. [Deferred] User chose to skip offline tests with a fake model router.
+26. [Completed] Map the understood ordinary Python Agent loop to LangGraph State, nodes, edges, and conditional edges.
+    - [Completed] Understand `TypedDict` as the Python schema that describes the existing State dictionary.
+    - [Completed] Define `AgentState` and use the `add` reducer so node updates append new messages instead of replacing the existing list.
+    - [Completed] Install `langgraph` in the project virtual environment and verify that `StateGraph` imports successfully.
+    - [Completed] Create `langgraph_agent.py` and initialize `StateGraph(AgentState)` as `graph_builder`.
+    - [Completed] Create `build_graph(router)` and the first `call_model` node; understand full-State input and partial-State output.
+    - [Completed] Add the `START -> call_model` entry edge and understand how an edge controls execution order.
+    - [Completed] Add `route_after_model` and conditional routing for tool calls versus final answers.
+    - [Completed] Create the `execute_tools` node, execute every tool call in the latest assistant message, and return tool-result updates.
+    - [Completed] Add the `execute_tools -> call_model` loop edge and complete the graph representation of the ordinary Agent loop.
+    - [Completed] Compile the builder into a `CompiledStateGraph` and return the runnable graph from `build_graph()`.
+    - [Completed] Understand the origin of `graph = graph_builder.compile()` and why `build_graph()` returns `CompiledStateGraph` even though it uses `StateGraph` internally.
+    - [Completed] Add `run_graph_agent(repo_path, question, router)` to create initial State, invoke the compiled graph, and return the final assistant content.
+    - [Completed] Connect the compiled LangGraph runner to the CLI while preserving `/list`, `/read`, `/search`, and `/exit`.
+27. [Completed] Add an explicit `max_graph_steps=20` limit to each LangGraph invocation so repeated model/tool cycles cannot run forever.
+28. [Completed] Translate `GraphRecursionError` into `AgentLimitError` and let the CLI continue after a step-limit failure.
+29. [Completed] Distinguish the three timeout scopes and add a 60-second default timeout at DeepSeek client creation.
+30. [Completed] Translate `APITimeoutError` into project-level `AgentTimeoutError`; the CLI catches its `AgentLimitError` parent and continues.
+31. [Completed] Add a shared 1 MiB file-size limit: `read_file` raises `ValueError` for oversized files, while `search_text` skips them and continues searching.
+32. [Completed] Understand how successful results and failure strings both become `role="tool"` messages in State, and how the graph edge triggers the model's second call.
+33. [Completed] Pass an optional CLI callback through the runner into the graph; `execute_tools` now reports each selected tool before executing it.
+34. [Completed] Create the repository-root portfolio `README.md`, pin the current runtime dependencies in `project/requirements.txt`, and explicitly ignore `.venv/`.
+35. [Completed] Align the Git index with the portfolio boundary: keep the runnable project and public decisions, while retaining local teaching/reference/tool files only on disk.
+36. [Completed] Review and stage the intended project changes as one coherent portfolio update before committing.
+37. [Current] Create the portfolio commit and push it to the existing GitHub `main` branch after final staged-diff confirmation.
 
 ## Current Task Detail
 
 Goal:
-Verify the complete Agent loop offline with deterministic fake model responses, without sending a paid DeepSeek request.
+Publish the completed LangGraph Agent and cleaned portfolio boundary to the existing GitHub repository.
+
+Current substep:
+Review the final staged file list and choose a commit message that accurately covers the Agent implementation, reliability boundaries, documentation, and repository cleanup.
 
 Manual action:
-The agent first explains dependency injection, fake responses, and assertions. The user then builds the main test structure; the agent may complete repetitive fake response objects and narrow test setup.
+Inspect `git diff --cached --stat`, create one commit on `main`, and push `main` to the existing `origin` remote only after explicit confirmation.
 
 Why:
-The Agent loop should be testable even when the external model is unavailable, has insufficient balance, or produces nondeterministic output.
+The local project is ready for portfolio review, but committing and pushing changes the public GitHub repository and should happen as an explicit final publication step.
 
 Verify:
-Tests cover a direct final answer, one tool call followed by a final answer, a tool error returned to the model, and the maximum-step guard. No test performs a network request.
+Confirm the commit exists locally, `git status` is clean for public files, and the remote `main` points to the new commit without exposing ignored local files or secrets.
 
 ## Task Format
 

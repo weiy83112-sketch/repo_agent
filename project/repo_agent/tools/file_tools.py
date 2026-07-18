@@ -1,5 +1,9 @@
 from pathlib import Path #导入Path 用于接收仓库文件夹路径
 
+
+# 单个文件最多读取 1 MiB，避免超大文件占用过多内存和模型上下文
+MAX_FILE_SIZE_BYTES = 1 * 1024 * 1024
+
 #括号内是 参数名 参数类型  返回一个列表 列表内都是字符串
 def list_files(repo_path: Path) -> list[str]:  # 定义工具：输入 Path，返回字符串列表
     entries = []  # 创建空列表，用来保存发现的文件名和文件夹名
@@ -27,6 +31,11 @@ def read_file(repo_path: Path, relative_path: str) -> str:  # 定义读取文本
     if not file_path.is_file():  # 检查目标路径是否是一个真实存在的文件
         raise ValueError(f"file not found: {relative_path}")  # 文件不存在就报错
 
+    file_size = file_path.stat().st_size  # 只读取文件元数据中的字节数，不读取文件正文
+
+    if file_size > MAX_FILE_SIZE_BYTES:  # 定点读取超大文件时，明确告诉调用者失败原因
+        raise ValueError(f"file is too large: {relative_path}")
+
     return file_path.read_text(encoding="utf-8")  # 使用 UTF-8 读取文本并返回字符串
 
 def search_text(repo_path: Path, query: str) -> list[str]:  # 定义搜索工具，返回匹配文件路径列表
@@ -38,6 +47,9 @@ def search_text(repo_path: Path, query: str) -> list[str]:  # 定义搜索工具
 
         if not resolved_path.is_relative_to(repo_root):  # 检查文件是否仍在仓库内部
             continue  # 如果文件跑到仓库外部，就跳过当前文件
+
+        if resolved_path.stat().st_size > MAX_FILE_SIZE_BYTES:  # 搜索时跳过超大文件
+            continue  # 不让一个超大文件中断整个仓库的搜索
 
         try:  # 尝试读取当前 Python 文件
             content = resolved_path.read_text(encoding="utf-8")  # 读取文件的全部文本

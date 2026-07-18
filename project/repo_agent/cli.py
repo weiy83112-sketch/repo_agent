@@ -1,7 +1,8 @@
 import argparse  # 导入 Python 内置的命令行参数解析工具
 from pathlib import Path  # 导入 Path，用对象表示文件夹路径
 
-from .agent import run_agent  # 导入 Agent loop，将自然语言问题交给 Agent 处理
+from .exceptions import AgentLimitError  # 导入项目级限制异常，CLI 不依赖 LangGraph 的异常类型
+from .langgraph_agent import run_graph_agent  # 导入 LangGraph runner，将自然语言问题交给编译图处理
 from .model_router import ModelRouter  # 导入模型路由，供整个 CLI 会话重复使用
 from .tools.file_tools import list_files, read_file, search_text  # 导入三个只读工具
 
@@ -27,9 +28,14 @@ def parse_args() -> Path:  # 定义参数解析函数，返回仓库的 Path 对
     return repo_path  # 返回检查通过的仓库路径
 
 
+# 显示模型选择的工具；真实工具仍由 LangGraph 的 execute_tools 节点执行
+def show_tool_call(name: str, arguments: dict) -> None:
+    print(f"using tool: {name} {arguments}")
+
+
 def main() -> None:  # 定义 CLI 程序的主函数
     repo_path = parse_args()  # 解析参数并得到目标仓库路径
-    router = ModelRouter()  # 创建一次模型路由；真正的 API 请求发生在 run_agent 内部
+    router = ModelRouter()  # 创建一次模型路由；真正的 API 请求发生在 run_graph_agent 内部
 
     print("repo-agent started")  # 提示用户程序已经启动
     print(f"target repo: {repo_path}")  # 显示 Agent 将要读取的仓库
@@ -82,9 +88,15 @@ def main() -> None:  # 定义 CLI 程序的主函数
 
             continue  # 搜索处理完成，等待下一次输入
 
-        answer = run_agent(  # 普通自然语言输入交给 Agent loop 处理
-            repo_path=repo_path,  # 限制 Agent 只能读取指定仓库
-            question=question,  # 传入用户当前问题
-            router=router,  # 复用 CLI 启动时创建的模型路由
-        )
+        try:
+            answer = run_graph_agent(  # 普通自然语言输入交给 LangGraph Agent 处理
+                repo_path=repo_path,  # 限制 Agent 只能读取指定仓库
+                question=question,  # 传入用户当前问题
+                router=router,  # 复用 CLI 启动时创建的模型路由
+                on_tool_call=show_tool_call,  # 将终端显示函数交给图中的工具节点按需调用
+            )
+        except AgentLimitError as error:
+            print(f"error: {error}")  # 显示可理解的项目错误，不暴露 LangGraph 内部异常
+            continue  # 只结束当前问题，继续等待下一次 CLI 输入
+
         print(answer)  # 输出 Agent 根据仓库真实内容生成的最终回答

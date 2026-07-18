@@ -26,14 +26,14 @@ def run_agent(
         )
         message = response.choices[0].message
 
-        if message.tool_calls:
+        if message.tool_calls:#模型请求工具
             state["messages"].append(message.model_dump(exclude_none=True))
 
             for tool_call in message.tool_calls:
                 try:
-                    # 将模型返回的 JSON 参数字符串转换为 Python 字典
+                    #解析模型json参数
                     arguments = json.loads(tool_call.function.arguments)
-                    result = execute_tool(
+                    result = execute_tool(#匹配工具
                         repo_path=repo_path,
                         name=tool_call.function.name,
                         arguments=arguments,

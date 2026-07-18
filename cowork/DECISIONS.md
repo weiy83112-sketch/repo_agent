@@ -216,3 +216,31 @@ Constraint:
 - For `source/` projects, the default behavior is: user manually places the project under `source/`, then the agent reads and explains it.
 - For `project/` implementation, the default behavior is: the agent explains what to create or type, the user performs the step, then the agent verifies and teaches from the result.
 - As an exception to the previous rule, the agent may directly implement small details under the responsibility rules above. Manual work should focus on the project's major structure and core Agent flow.
+
+## 0009 - Explain code with complete execution context
+
+Status: active
+
+When teaching Python syntax, control flow, exceptions, Agent loops, or framework calls, the agent must show the complete relevant code context instead of presenting an isolated line.
+
+Required teaching context:
+
+- Start from the user's actual code under `project/` whenever the concept already exists there.
+- Show the complete relevant function or control-flow branch, including the caller, the called function, the line that raises or returns, the matching handler, and the code that runs afterward.
+- Do not replace required code with `...` when the user is learning how the block works.
+- Clearly label code as one of: already present in the project, reference-project code, library-internal code, or proposed code not yet implemented.
+- Walk through one concrete input value and state exactly which branch runs, what important variables contain, where execution jumps, and whether the current function, current task, loop, or entire program stops.
+- When explaining an exception, identify the exact `raise` site and the exact matching `except` site in the real code before discussing abstractions or inheritance.
+- Explain the project-level call chain first. Only enter SDK or framework internals when needed or explicitly requested by the user.
+- A short isolated syntax excerpt may be used only after the complete context has already been established.
+
+Reason:
+
+- Isolated statements such as a single `raise` or `except` do not show the execution order needed by a beginner.
+- The user learns best by tracing real values through the existing project rather than by switching to detached toy examples.
+- Separating existing code from planned code prevents confusion about what the project currently does.
+
+Constraint:
+
+- Conciseness must not remove caller/callee context or omit code required to understand execution flow.
+- If a previous explanation was too fragmented, restart from the complete relevant block instead of adding more isolated fragments.

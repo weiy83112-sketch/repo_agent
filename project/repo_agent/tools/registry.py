@@ -100,7 +100,7 @@ def validate_tool_arguments(name: str, arguments: dict) -> None:
     if unexpected:#这一步抛出传入的多余参数
         raise ValueError(f"unexpected tool arguments: {', '.join(unexpected)}")
 
-    for key, value in arguments.items():  # 逐个检查已有参数的值类型
+    for key, value in arguments.items():  # 逐个检查已有参数的值类型 字典的item取出键值对
         expected_type = properties[key]["type"]  # 读取 schema 声明的 JSON 类型
 
         if expected_type == "string" and not isinstance(value, str):

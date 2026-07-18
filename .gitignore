@@ -6,6 +6,22 @@
 !.env.example
 
 # Python-generated cache files are local build artifacts.
+.venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/
+
+# Local Agent workspace metadata and generated run logs.
+.agents/
+.codex/
+.reasonix/
+.runlogs/
+
+# Local teaching materials and downloaded reference repositories are not part of the portfolio project.
+docs/
+source/
+
+# Keep only the public project decisions and task board from cowork/.
+cowork/HANDOFF.md
+cowork/README.md
+cowork/WORKFLOW.md
