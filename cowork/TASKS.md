@@ -63,24 +63,26 @@
 34. [Completed] Create the repository-root portfolio `README.md`, pin the current runtime dependencies in `project/requirements.txt`, and explicitly ignore `.venv/`.
 35. [Completed] Align the Git index with the portfolio boundary: keep the runnable project and public decisions, while retaining local teaching/reference/tool files only on disk.
 36. [Completed] Review and stage the intended project changes as one coherent portfolio update before committing.
-37. [Current] Create the portfolio commit and push it to the existing GitHub `main` branch after final staged-diff confirmation.
+37. [Completed] Create the portfolio commit and push it to the existing GitHub `main` branch after final staged-diff confirmation.
+38. [Completed] Design the final-version code-aware hybrid RAG upgrade for medium-to-large Python repositories.
+39. [Current] Review the written hybrid-RAG design before creating the implementation teaching plan.
 
 ## Current Task Detail
 
 Goal:
-Publish the completed LangGraph Agent and cleaned portfolio boundary to the existing GitHub repository.
+Deepen the completed Repo Agent for both campus-recruitment portfolio value and practical question answering over medium-to-large Python repositories.
 
 Current substep:
-Review the final staged file list and choose a commit message that accurately covers the Agent implementation, reliability boundaries, documentation, and repository cleanup.
+Review the written design for AST-aware indexing, local hybrid retrieval, context budgeting, LangGraph integration, and before/after evaluation.
 
 Manual action:
-Inspect `git diff --cached --stat`, create one commit on `main`, and push `main` to the existing `origin` remote only after explicit confirmation.
+Read `project/design/repo_agent/code-aware-hybrid-rag-design.md` and report any requested changes or approve it for implementation planning.
 
 Why:
-The local project is ready for portfolio review, but committing and pushing changes the public GitHub repository and should happen as an explicit final publication step.
+The confirmed checklist has now been converted into an explicit engineering design; implementation teaching must follow the reviewed boundaries and acceptance criteria.
 
 Verify:
-Confirm the commit exists locally, `git status` is clean for public files, and the remote `main` points to the new commit without exposing ignored local files or secrets.
+The design has no placeholders or contradictory scope, and the user explicitly approves it before implementation tasks begin.
 
 ## Task Format
 
