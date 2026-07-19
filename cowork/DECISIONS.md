@@ -1,246 +1,137 @@
-# Decision Log
+# Active Decisions
 
-This file records durable decisions that future agents should not rediscover from scratch.
+## D-001 项目目录与文档边界
 
-## 0001 - Use `docs/` for teach-generated learning materials
+状态：active
+关键词：project、source、docs、路径
+适用范围：所有代码、第三方源码、设计与教学资料
 
-Status: active
+决定：
+可运行代码和正式设计放在 `project/`，使用英文文件名；研究用第三方仓库放在 `source/`；教学资料放在 `docs/`，允许中文路径；协作上下文放在 `cowork/`。
 
-Teach-generated files are maintained under `docs/` instead of the repository root.
+原因：
+把用户代码、第三方源码、学习材料和上下文分开，既方便工具处理，也避免误改或误提交本地资料。
 
-Reason:
+执行要求：
+- 不把可运行代码放入 `docs/`、`source/` 或 `cowork/`。
+- 未经明确要求不修改 `source/` 中的第三方代码。
+- 正式设计使用 `project/design/<topic>-design.md`；可按独立子系统保留多份有效设计。
 
-- Keeps the project root clean.
-- Separates learning material from future Agent code.
-- Makes the learning system easy to browse from `docs/首页.html`.
+## D-002 密钥与外部数据传输
 
-Security constraint:
+状态：active
+关键词：密钥、env、DeepSeek、数据外发
+适用范围：模型调用、日志、结果、Git 与文档
 
-- This repository must never store real API keys, access tokens, passwords, or other secrets in `docs/`, `project/`, `cowork/`, source code, examples, logs, or Git history.
-- Model credentials must be read from local environment variables such as `DEEPSEEK_API_KEY`.
-- Local `.env` files must remain ignored by Git. A committed `.env.example` may contain variable names and placeholder values only.
-- If a real credential is pasted into chat, source code, terminal output, logs, or a commit, treat it as exposed: revoke it and generate a replacement instead of reusing it.
+决定：
+真实凭据只从本地环境变量或被 Git 忽略的 `.env` 读取，任何源码、文档、结果和日志都不得保存密钥。向外部模型发送本地源码或产生付费调用前，必须说明发送范围并取得用户明确授权。
 
-## 0002 - Use Chinese filenames inside `docs/`
+原因：
+源码外发和凭据泄露是不同但都需要显式控制的风险；断点续跑也必须避免因环境错误继续消耗费用。
 
-Status: active
+执行要求：
+- `.env.example` 只能包含变量名和占位值。
+- 不读取或打印真实 Key；若凭据进入代码、日志或 Git，应视为暴露并建议撤销。
+- 评测结果不得保存 `.env`、环境变量、请求头或 API Key。
 
-Inside `docs/`, learning material paths use Chinese names:
+## D-003 模型路由与 Agent 实现隔离
 
-- `课程/`
-- `参考/`
-- `学习记录/`
-- `素材/`
-- `首页.html`
-- `学习目标.md`
-- `学习资源.md`
-- `教学笔记.md`
+状态：active
+关键词：ModelRouter、capability、Adapter、模型隔离
+适用范围：`project/repo_agent/` 与 `project/evaluation/`
 
-Reason:
+决定：
+Agent 工作流只依赖 `simple`、`complex` 等能力名，不接触具体模型。当前 `simple` 对应 DeepSeek Flash High，`complex` 对应 DeepSeek Pro High，均启用 Thinking；Evaluation Runner 只依赖统一 `agent.run()`，由 Adapter 隔离 Baseline 与未来 Hybrid RAG Agent。
 
-- These files are for learning and review.
-- Chinese names improve recognition and recall.
-- HTML links have been updated to match these names.
+原因：
+模型或 Agent 实现变化时，不应重写 LangGraph 流程和评测循环。
 
-Constraint:
+执行要求：
+- 具体模型名、参数和 SDK 调用集中在 `ModelRouter`。
+- Runner 不添加 `if baseline / if hybrid-rag` 分支。
+- 新 Agent 实现通过 Adapter 接入，并保持统一运行接口。
 
-- Future code folders should still use English filenames and directory names.
-- `cowork/` keeps English filenames because it is an agent coordination folder.
+## D-004 手动优先的教学协作
 
-## 0003 - DeepSeek-first model strategy
+状态：active
+关键词：教学、manual-first、完整上下文、代码讲解
+适用范围：教学、架构实现和用户操作
 
-Status: active
+决定：
+核心模块、主要控制流和架构接缝应先结合真实项目代码讲清，再由用户理解或操作；参数校验、重复代码和窄范围胶水可由 Agent 直接完成，但必须标注并保留完整实现。
 
-The planned Agent project should default to DeepSeek V4 Pro for complex reasoning, with model routing abstractions for task categories such as `simple`, `complex`, and `planning`.
+原因：
+项目目标既是可运行作品集，也是用户的第一个 Agent 学习项目；只给孤立语句或静默生成全部代码都不利于掌握。
 
-Reason:
+执行要求：
+- 教学先展示调用者、被调用函数、关键变量、返回/抛出位置和后续路径。
+- 新语法、命令或框架 API 先用中文和具体值解释。
+- 用户表示看懂并授权修改后，可直接落盘并验证；不得用 `...` 省略必要代码。
 
-- The user has enough DeepSeek quota.
-- The project should not depend on Ollama as a cost-saving measure.
-- A `ModelRouter` still keeps the workflow flexible if a future company requires local small models for simple tasks.
+## D-005 只读 Agent 的安全与可靠性边界
 
-Constraint:
+状态：active
+关键词：只读工具、路径边界、文件限制、异常
+适用范围：CLI Agent、LangGraph 和文件工具
 
-- Do not add local model complexity unless it becomes a concrete requirement.
+决定：
+当前 Agent 只允许列目录、读文件和搜索文本；仓库路径由程序控制，模型不能更换目标仓库。预期工具错误应转为 Tool Message 供模型恢复，框架或环境级错误通过项目异常隔离并由外层停止。
 
-## 0004 - Separate Agent workflow from model choice
+原因：
+代码阅读不需要写入或执行权限；明确边界可降低路径逃逸、无限循环和难以诊断的框架耦合。
 
-Status: active
+执行要求：
+- 阻止仓库外路径，单文件上限 1 MiB。
+- 单次图运行最多 20 步，模型客户端超时 60 秒。
+- 未经新设计和用户批准，不增加写、删文件或执行系统命令工具。
 
-Agent workflow code should depend on capability names such as `simple`, `complex`, and `planning`, not concrete model names.
+## D-006 固定且可恢复的 Baseline 评测
 
-Reason:
+状态：active
+关键词：evaluation、baseline、case_id、断点续跑
+适用范围：`project/evaluation/` 和模型评测
 
-- The Agent state machine should not change when the model behind `simple` changes.
-- This makes it possible to replace DeepSeek Flash with a local small model later without rewriting Agent logic.
+决定：
+Hybrid RAG 实现前必须先使用固定的 31 道题和固定 pytest/Django 快照记录当前文件工具 Agent 的 Flash High、Pro High 两份 Baseline。Runner 顺序执行，每题完成立即写入并 `flush`，通过唯一 `case_id` 续跑。
 
-## 0005 - Put real project code under `project/`
+原因：
+固定题库、代码快照和模型配置，才能证明后续检索改造带来的真实提升，并避免中断后重复付费。
 
-Status: active
+执行要求：
+- 单题超时、步骤超限或无文本记录失败后继续；Key、余额、配置、快照和写入错误停止整轮。
+- 已保存成功或失败题默认都跳过，不静默重试困难样本。
+- 不改变 Runner 核心循环来适配 Hybrid RAG。
 
-The runnable Agent project should live under:
+## D-007 Code-Aware Hybrid RAG 方向
 
-```text
-project/
-```
+状态：active
+关键词：Hybrid RAG、AST、FTS5、Embedding、RRF
+适用范围：Baseline 完成后的主要开发阶段
 
-Reason:
+决定：
+第一阶段面向约 1,000–10,000 个 Python 文件的仓库，采用 Python AST 切块、SQLite 持久化与 FTS5、本地多语言 Embedding、RRF 混合排序和 Context Builder；保留现有只读工具，并新增可追溯的代码检索能力。
 
-- Keeps root-level coordination simple: `docs/` for learning, `cowork/` for agent collaboration, `project/` for real code.
-- Prevents future agents from mixing implementation files into `docs/`.
-- Allows the code area to keep English paths while learning materials keep Chinese paths.
+原因：
+精确标识符适合关键词检索，自然语言与英文代码匹配需要语义检索，AST 和上下文预算保证证据完整且可控。
 
-Constraint:
+执行要求：
+- 先完成 Baseline，再依次实现领域模型、Scanner、Chunker、Index、Retriever 和 LangGraph 接入。
+- 索引不得写入被分析仓库，更新必须事务化。
+- 第一阶段不加入 Web、多 Agent、跨进程长期对话记忆或完整调用图。
 
-- Do not put runnable project source code directly in the repository root.
-- Do not put project source code under `docs/` or `cowork/`.
-- Use English directory names and filenames under `project/`.
+## D-008 项目级上下文按需检索
 
-## 0006 - Use `source/` for open-source Agent projects
+状态：active
+关键词：AGENTS、DECISIONS、ARCHIVE、checkpoint
+适用范围：所有后续 Codex 任务
 
-Status: active
+决定：
+`AGENTS.md` 只保存自动启动所需的当前断点与高价值规则；`DECISIONS.md` 只保存仍有效决定；`ARCHIVE.md` 保存已完成里程碑、可复用知识、踩坑和失效决定。历史相关任务必须先搜索关键词，再读取少量命中小节。
 
-Open-source GitHub projects studied by the user should be placed under:
+原因：
+把当前状态、长期约束与历史知识分层，可以减少上下文噪声，避免每次任务全文加载旧记录。
 
-```text
-source/
-```
-
-Reason:
-
-- The user's original goal is to learn Agent development by reading real open-source Agent projects.
-- `source/` keeps third-party projects separate from the user's own implementation under `project/`.
-- Lessons in `docs/` should increasingly connect concepts back to concrete files under `source/`.
-
-Learning loop:
-
-```text
-source/   read open-source Agent projects
-docs/     record concepts and lessons
-project/  implement the user's own Agent project
-cowork/   coordinate agents and durable decisions
-```
-
-Constraint:
-
-- Do not edit third-party source code casually unless the task explicitly requires an experiment or patch.
-- Do not mix copied open-source project files into `project/`.
-
-## 0007 - Store formal project design docs under `project/design/`
-
-Status: active
-
-Formal design documents for the user's own Agent project should be stored under:
-
-```text
-project/design/
-```
-
-Reason:
-
-- Design docs are part of the user's real project, not only learning notes.
-- Keeping them under `project/` anchors the implementation direction for future agents.
-- Multiple AI agents can read and update the same project design context before writing code.
-- `docs/` remains focused on learning material, lessons, references, and logs.
-
-Naming convention:
-
-```text
-<short-english-topic>-design.md
-```
-
-Example:
-
-```text
-project/design/cli-repo-agent-design.md
-```
-
-Constraint:
-
-- Use English filenames under `project/design/`.
-- Do not add dates to the formal design document filename.
-- Keep one active formal design document for the current project direction.
-- Track step-by-step implementation tasks in `cowork/TASKS.md`, not in a separate implementation plan document.
-- The document body may use Chinese as the main language, with important English terms preserved.
-- Do not store formal project design docs under `docs/superpowers/specs/`.
-
-## 0008 - Use manual-first teaching workflow
-
-Status: active
-
-The user wants to manually build the project from scratch while the agent teaches, guides, and verifies each step.
-
-This includes:
-
-- Downloading or cloning reference open-source projects into `source/`.
-- Creating folders and files under `project/`.
-- Copying or moving files when needed.
-- Installing dependencies.
-- Creating or activating virtual environments.
-- Setting API keys or environment variables.
-- Running setup, test, and CLI commands.
-- Implementing the user's own project step by step.
-
-Reason:
-
-- The user's goal is to learn Agent development by doing the project manually, not by watching an agent silently generate everything.
-- The user wants to understand Agent, LangChain, LangGraph, Agent protocol concepts, CLI, file operations, environment setup, and project workflow through the same project.
-- Manual setup makes hidden project assumptions visible.
-- It prevents agents from silently performing important operations that the user wants to understand.
-- It reduces the risk of accidentally modifying or mixing third-party source code with the user's own project.
-
-Agent responsibility:
-
-- Read and maintain `cowork/TASKS.md` as the step-by-step teaching plan.
-- Tell the user exactly what to do next through tasks.
-- Explain the manual steps clearly.
-- Prefer one small step at a time.
-- Before introducing a new command-line option, library, Python syntax, Agent term, or framework concept, explain what it means in plain Chinese with a concrete example.
-- Do not assume prior Python, CLI, package, or framework knowledge merely because a concept is considered basic. Re-teach prerequisite concepts when they are needed by the current Agent task.
-- Before adding a new control-flow block or function call, show the execution order and use concrete example values to explain what each important variable contains.
-- Break each new command into its executable, module or subcommand, option name, and option value before asking the user to run it.
-- For code blocks that the user is expected to type manually, provide a teaching version with concise Chinese comments explaining every non-empty line. A comment may be placed on the preceding line when an inline comment would make the syntax harder to read.
-- Keep the annotated teaching version in the project during the early learning stage. After the user understands and verifies the code, provide a clean version with only useful engineering comments when appropriate.
-- Do not introduce unexplained syntax such as `--repo`, `argparse`, decorators, type annotations, or framework APIs inside a large code block.
-- Explain each command before asking the user to run it.
-- After the user finishes, inspect the workspace and verify the result.
-- Only perform setup actions directly when the user explicitly asks the agent to do so.
-- When a task introduces a new concept, explain it in context before moving on.
-- Distinguish between framework-level work and small implementation details. The user manually builds major modules, core workflows, architectural seams, and other code that is important for understanding the project as a whole.
-- The agent may directly complete small details such as formatting fixes, repetitive parameter checks, narrow error handling, and other low-level glue code after explaining what changed.
-- When the agent completes a small detail, clearly mark the added or changed code and verify it. Do not omit required code or replace applicable code with `...`.
-
-Constraint:
-
-- Do not automatically download, clone, install, initialize, scaffold, or implement project assets unless the user explicitly requests agent execution.
-- For `source/` projects, the default behavior is: user manually places the project under `source/`, then the agent reads and explains it.
-- For `project/` implementation, the default behavior is: the agent explains what to create or type, the user performs the step, then the agent verifies and teaches from the result.
-- As an exception to the previous rule, the agent may directly implement small details under the responsibility rules above. Manual work should focus on the project's major structure and core Agent flow.
-
-## 0009 - Explain code with complete execution context
-
-Status: active
-
-When teaching Python syntax, control flow, exceptions, Agent loops, or framework calls, the agent must show the complete relevant code context instead of presenting an isolated line.
-
-Required teaching context:
-
-- Start from the user's actual code under `project/` whenever the concept already exists there.
-- Show the complete relevant function or control-flow branch, including the caller, the called function, the line that raises or returns, the matching handler, and the code that runs afterward.
-- Do not replace required code with `...` when the user is learning how the block works.
-- Clearly label code as one of: already present in the project, reference-project code, library-internal code, or proposed code not yet implemented.
-- Walk through one concrete input value and state exactly which branch runs, what important variables contain, where execution jumps, and whether the current function, current task, loop, or entire program stops.
-- When explaining an exception, identify the exact `raise` site and the exact matching `except` site in the real code before discussing abstractions or inheritance.
-- Explain the project-level call chain first. Only enter SDK or framework internals when needed or explicitly requested by the user.
-- A short isolated syntax excerpt may be used only after the complete context has already been established.
-
-Reason:
-
-- Isolated statements such as a single `raise` or `except` do not show the execution order needed by a beginner.
-- The user learns best by tracing real values through the existing project rather than by switching to detached toy examples.
-- Separating existing code from planned code prevents confusion about what the project currently does.
-
-Constraint:
-
-- Conciseness must not remove caller/callee context or omit code required to understand execution flow.
-- If a previous explanation was too fragmented, restart from the complete relevant block instead of adding more isolated fragments.
+执行要求：
+- 普通独立任务不读取 `cowork/`；教学先查 Decisions，恢复历史再查 Archive。
+- 当前代码事实优先于归档；冲突顺序遵循用户要求、AGENTS、Decisions、Archive。
+- 里程碑 checkpoint 时替换当前断点、合并决定并追加精简归档，不保存聊天原文。
