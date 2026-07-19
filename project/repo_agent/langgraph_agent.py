@@ -6,8 +6,8 @@ from langgraph.errors import GraphRecursionError
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
-from repo_agent.exceptions import AgentLimitError
-from repo_agent.model_router import ModelRouter
+from repo_agent.exceptions import AgentLimitError, AgentResponseError
+from repo_agent.model_router import ModelCapability, ModelRouter
 from repo_agent.state import AgentState, create_initial_state
 from repo_agent.tools.registry import TOOL_SCHEMAS, execute_tool
 
@@ -16,14 +16,21 @@ from repo_agent.tools.registry import TOOL_SCHEMAS, execute_tool
 def build_graph(
     repo_path: Path,
     router: ModelRouter,
+    capability: ModelCapability = "complex",
     on_tool_call: Callable[[str, dict], None] | None = None,
 ) -> CompiledStateGraph:
     # 创建一个 LangGraph 构建器，并让整张图使用 AgentState 管理共享状态
     graph_builder = StateGraph(AgentState)
 
+    # 创建图时选定本轮使用的能力；call_model 闭包会一直记住这个函数。
+    model_call = {
+        "complex": router.complex,
+        "simple": router.simple,
+    }[capability]
+
     # call_model 是第一个节点：接收当前完整 State，调用一次模型
     def call_model(state: AgentState) -> dict:
-        response = router.complex(
+        response = model_call(
             messages=state["messages"],
             tools=TOOL_SCHEMAS,
         )
@@ -119,6 +126,7 @@ def run_graph_agent(
     repo_path: Path,
     question: str,
     router: ModelRouter,
+    capability: ModelCapability = "complex",
     max_graph_steps: int = 20,
     on_tool_call: Callable[[str, dict], None] | None = None,
 ) -> str:
@@ -126,6 +134,7 @@ def run_graph_agent(
     graph = build_graph(
         repo_path=repo_path,
         router=router,
+        capability=capability,
         on_tool_call=on_tool_call,
     )
 
@@ -148,7 +157,7 @@ def run_graph_agent(
     final_message = final_state["messages"][-1]
     content = final_message.get("content")
 
-    if not isinstance(content, str):
-        raise ValueError("final assistant message has no text content")
+    if not isinstance(content, str) or not content.strip():
+        raise AgentResponseError("final assistant message has no text content")
 
     return content

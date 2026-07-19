@@ -65,24 +65,59 @@
 36. [Completed] Review and stage the intended project changes as one coherent portfolio update before committing.
 37. [Completed] Create the portfolio commit and push it to the existing GitHub `main` branch after final staged-diff confirmation.
 38. [Completed] Design the final-version code-aware hybrid RAG upgrade for medium-to-large Python repositories.
-39. [Current] Review the written hybrid-RAG design before creating the implementation teaching plan.
+39. [Completed] Review the written hybrid-RAG design before creating the implementation teaching plan.
+40. [Completed] Understand why the evaluation baseline must be fixed before implementing RAG.
+41. [Completed] Represent one Ground Truth evaluation case as a Python dictionary, then define its schema and JSONL storage format.
+42. [Completed] Create the evaluation directory and the first manually verified code question.
+43. [Completed] Load `cases.jsonl` one line at a time and validate each dictionary at runtime.
+    - [Completed] Understand `cases: list[EvaluationCase]` and the normal list-building flow.
+    - [Completed] Distinguish `path`, the opened `file` object, and each `raw_line` string.
+    - [Completed] Understand `enumerate(file, start=1)` and `strip()`.
+    - [Completed] Trace the blank-line and invalid-JSON error branches.
+    - [Completed] Trace `validate_evaluation_case()` from object-shape checks through field validation and `cast`.
+44. [Completed] Select two medium-to-large Python repositories and expand the dataset to about 30 questions.
+    - [Completed] Select `pytest-dev/pytest` as the medium Python CLI/plugin benchmark.
+    - [Completed] Select `django/django` as the larger multi-subsystem Python benchmark.
+    - [Completed] Clone shallow snapshots under `source/` and record both exact commits in `project/evaluation/repositories.json`.
+    - [Completed] Create 15 evidence-checked cases for each repository across all four categories.
+    - [Completed] Review a representative pytest entry-point case so the benchmark is understandable without requiring full pytest or Django study.
+45. [Current] Record the current Agent baseline without changing its retrieval behavior.
+    - [Completed] Add stable, unique case IDs through the public loader interface.
+    - [Completed] Move fixed input files under `evaluation/data/` and verify repository snapshots.
+    - [Completed] Route `complex` to Pro High and `simple` to Flash High without leaking model names into LangGraph.
+    - [Completed] Add the EvaluationAgent interface and Baseline Agent Adapter.
+    - [Completed] Implement the generic, resumable Runner and result schema using a Fake Adapter first.
+    - [Completed] Add the `python -m evaluation` assembly entry and complete offline checks (17 tests pass).
+    - [Blocked] Run all 31 cases with Flash High, then all 31 cases with Pro High; the local sandbox requires renewed approval because source excerpts and questions are sent to DeepSeek.
+    - [Pending] Verify both result files and publish the Baseline summary in the next scoring step.
+46. [Pending] Define the code-index domain models: files, chunks, retrieval hits, and evidence.
+47. [Pending] Implement and verify the repository scanner.
+48. [Pending] Implement and verify AST-aware Python code chunking.
+49. [Pending] Implement the transactional SQLite repository index and incremental updates.
+50. [Pending] Implement the SQLite FTS5 keyword retriever.
+51. [Pending] Add the local multilingual Embedder and vector retrieval.
+52. [Pending] Combine keyword and vector rankings with Reciprocal Rank Fusion.
+53. [Pending] Implement context deduplication, neighbor expansion, and budget control.
+54. [Pending] Introduce ToolRuntime and register the `search_code` tool.
+55. [Pending] Add the LangGraph `retrieve_context` node and preserve the existing tool loop.
+56. [Pending] Run the fixed evaluation suite and publish the before/after portfolio report.
 
 ## Current Task Detail
 
 Goal:
-Deepen the completed Repo Agent for both campus-recruitment portfolio value and practical question answering over medium-to-large Python repositories.
+Record a reproducible baseline from the current file-tool Agent before adding code-aware retrieval.
 
 Current substep:
-Review the written design for AST-aware indexing, local hybrid retrieval, context budgeting, LangGraph integration, and before/after evaluation.
+Obtain renewed approval for the documented DeepSeek data transfer, then resume Flash from the first unsaved case.
 
 Manual action:
-Read `project/design/repo_agent/code-aware-hybrid-rag-design.md` and report any requested changes or approve it for implementation planning.
+Confirm that evaluation questions and source excerpts read by the Agent may be sent to DeepSeek. The API key, `.env`, and request headers are never included in model messages or result files.
 
 Why:
-The confirmed checklist has now been converted into an explicit engineering design; implementation teaching must follow the reviewed boundaries and acceptance criteria.
+The implementation and offline validation are complete, but the managed environment treats sending local repository content to an external model as a separate data-export decision.
 
 Verify:
-The design has no placeholders or contradictory scope, and the user explicitly approves it before implementation tasks begin.
+Both result files contain 31 unique case IDs with consistent model metadata and no secret values.
 
 ## Task Format
 

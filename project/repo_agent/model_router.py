@@ -1,48 +1,103 @@
-import os  # 导入 os，用于读取环境变量
-from pathlib import Path  # 导入 Path，用于定位项目中的 .env 文件
+import os
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Literal
 
-from dotenv import load_dotenv  # 导入 .env 文件加载工具
-from openai import APITimeoutError, OpenAI  # 导入客户端及其模型请求超时异常
+from dotenv import load_dotenv
+from openai import APIError, APITimeoutError, OpenAI
 
-from repo_agent.exceptions import AgentTimeoutError  # 导入项目级超时异常，隔离 SDK 细节
+from repo_agent.exceptions import AgentTimeoutError, ModelServiceError
 
 
-# __file__ 是当前 model_router.py 文件路径
-# parent 是 repo_agent 文件夹，parent.parent 是 project 文件夹
+# __file__ 是当前 model_router.py；parent.parent 是 project 文件夹。
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 
-# 从 project/.env 读取变量，并写入当前 Python 进程的环境变量
+# 把 project/.env 中的变量加载进当前 Python 进程的 os.environ。
 load_dotenv(PROJECT_DIR / ".env")
 
 
-class ModelRouter:
-    # 创建路由对象时，读取 Key 并创建 DeepSeek 客户端
-    def __init__(self):
-        # 从环境变量读取 Key，不把 Key 写进 Python 源码
-        api_key = os.environ.get("DEEPSEEK_API_KEY")
+ModelCapability = Literal["complex", "simple"]
 
-        # Key 缺失时主动停止，避免后面出现难懂的 API 报错
+
+@dataclass(frozen=True)
+class ModelMetadata:
+    """一次模型能力对应的只读配置，也是评测结果要保存的模型元数据。"""
+
+    capability: ModelCapability
+    model: str
+    thinking: str
+    reasoning_effort: str
+
+
+_MODEL_PROFILES: dict[ModelCapability, ModelMetadata] = {
+    "complex": ModelMetadata(
+        capability="complex",
+        model="deepseek-v4-pro",
+        thinking="enabled",
+        reasoning_effort="high",
+    ),
+    "simple": ModelMetadata(
+        capability="simple",
+        model="deepseek-v4-flash",
+        thinking="enabled",
+        reasoning_effort="high",
+    ),
+}
+
+
+class ModelRouter:
+    def __init__(self, client: Any | None = None):
+        # 正式运行不传 client：从环境变量读取 Key 并创建 DeepSeek 客户端。
+        # 测试可以传入 FakeClient，因此不会发出真实请求，也不需要读取 Key。
+        if client is not None:
+            self._client = client
+            return
+
+        api_key = os.environ.get("DEEPSEEK_API_KEY")
         if not api_key:
             raise ValueError("DEEPSEEK_API_KEY is not configured")
 
-        # 保存客户端；base_url 把 OpenAI SDK 指向 DeepSeek API
         self._client = OpenAI(
             api_key=api_key,
             base_url="https://api.deepseek.com",
-            timeout=60.0,  # 单次模型请求最多等待 60 秒，避免 call_model 长时间卡住
+            timeout=60.0,
         )
 
-    # Agent 通过 complex 能力进行一次复杂模型调用
-    def complex(self, messages, tools):
+    def model_metadata(self, capability: ModelCapability) -> ModelMetadata:
+        """返回能力对应的只读元数据，Runner 不需要重复模型名称。"""
+
+        return _MODEL_PROFILES[capability]
+
+    def _complete(self, capability: ModelCapability, messages, tools):
+        """根据能力配置发送一次共享的 Chat Completions 请求。"""
+
+        metadata = self.model_metadata(capability)
+
         try:
-            # 模型名称只保留在路由层，未来 Agent 不需要知道它
-            # tools 把注册表中的工具说明交给模型，但真实工具仍由 Agent 执行
             return self._client.chat.completions.create(
-                model="deepseek-v4-pro",
+                model=metadata.model,
                 messages=messages,
                 tools=tools,
                 stream=False,
+                reasoning_effort=metadata.reasoning_effort,
+                # OpenAI SDK 没有独立的 thinking 参数；extra_body 会把
+                # DeepSeek 扩展字段原样加入最终 HTTP 请求体。
+                extra_body={"thinking": {"type": metadata.thinking}},
             )
         except APITimeoutError as error:
-            # 将 SDK 异常转换成项目异常，外层不需要依赖 OpenAI SDK
+            # 把 SDK 异常转换为项目异常，外层不必依赖 OpenAI SDK 类型。
             raise AgentTimeoutError("Model request timed out") from error
+        except APIError as error:
+            # 连接失败、无效 Key、余额不足和模型配置错误都会停止整轮评测。
+            # Runner 不捕获这个项目级异常，因此不会把环境问题伪装成单题失败。
+            raise ModelServiceError("Model service request failed") from error
+
+    def complex(self, messages, tools):
+        """使用复杂能力（DeepSeek Pro High）调用一次模型。"""
+
+        return self._complete("complex", messages, tools)
+
+    def simple(self, messages, tools):
+        """使用简单能力（DeepSeek Flash High）调用一次模型。"""
+
+        return self._complete("simple", messages, tools)

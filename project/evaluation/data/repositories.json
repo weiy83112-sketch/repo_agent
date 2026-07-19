@@ -1,0 +1,14 @@
+[
+  {
+    "name": "pytest",
+    "url": "https://github.com/pytest-dev/pytest.git",
+    "commit": "67a174fcee355334c53588be2eeba8df702477e9",
+    "local_path": "source/pytest"
+  },
+  {
+    "name": "django",
+    "url": "https://github.com/django/django.git",
+    "commit": "3d34265d5d1b83fee5df3c1b6f55087b1a6a1ded",
+    "local_path": "source/django"
+  }
+]
