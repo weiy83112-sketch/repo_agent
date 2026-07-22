@@ -10,6 +10,7 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+project/.cache/
 
 # Local Agent workspace metadata and generated run logs.
 .agents/
@@ -21,7 +22,6 @@ __pycache__/
 docs/
 source/
 
-# Keep only the public project decisions and task board from cowork/.
-cowork/HANDOFF.md
+# Keep public project context and the active handoff available to collaborators.
 cowork/README.md
 cowork/WORKFLOW.md

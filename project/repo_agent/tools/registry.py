@@ -1,6 +1,7 @@
 from pathlib import Path  # 导入 Path，用来标注受程序控制的仓库路径
 
 from .file_tools import list_files, read_file, search_text  # 导入三个真实的 Python 工具函数
+from .runtime import ToolRuntime
 
 
 # 创建工具注册表：左边是工具名称，右边是真实函数
@@ -65,6 +66,31 @@ TOOL_SCHEMAS = [
 ]
 
 
+SEARCH_CODE_SCHEMA = {
+    "type": "function",
+    "function": {
+        "name": "search_code",
+        "description": (
+            "Search the repository index using keyword and semantic retrieval."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Question or code concept to search for.",
+                }
+            },
+            "required": ["query"],
+            "additionalProperties": False,
+        },
+    },
+}
+
+# 固定 Baseline 继续使用原来的 TOOL_SCHEMAS；RAG 图才使用扩展工具列表。
+RAG_TOOL_SCHEMAS = [*TOOL_SCHEMAS, SEARCH_CODE_SCHEMA]
+
+
 def get_tool(name: str):  # 根据工具名称查找并返回真实函数
     if name not in TOOL_REGISTRY:  # 判断模型给出的工具名称是否存在
         raise ValueError(f"unknown tool: {name}")  # 不存在就主动抛出错误
@@ -74,7 +100,7 @@ def get_tool(name: str):  # 根据工具名称查找并返回真实函数
 
 # [Agent 补充的小细节] 根据工具名称取得参数 schema，供运行时校验使用
 def get_tool_parameters(name: str) -> dict:
-    for tool_schema in TOOL_SCHEMAS:  # 逐个检查给模型阅读的工具说明
+    for tool_schema in RAG_TOOL_SCHEMAS:  # 逐个检查给模型阅读的工具说明
         function_schema = tool_schema["function"]  # 取得当前工具的函数说明
 
         if function_schema["name"] == name:  # 找到名称相同的工具说明
@@ -107,9 +133,26 @@ def validate_tool_arguments(name: str, arguments: dict) -> None:
             raise ValueError(f"tool argument '{key}' must be a string")
 
 
-def execute_tool(repo_path: Path, name: str, arguments: dict):  # 执行模型选择的工具
-    tool = get_tool(name)  # 通过工具名称取得真实的 Python 函数
+def execute_tool(
+    repo_path: Path,
+    name: str,
+    arguments: dict,
+    runtime: ToolRuntime | None = None,
+):  # 执行模型选择的工具
     validate_tool_arguments(name, arguments)  # 执行前先校验模型提供的参数
+
+    if name == "search_code":
+        if (
+            runtime is None
+            or runtime.retriever is None
+            or runtime.context_builder is None
+        ):
+            raise ValueError("search_code is unavailable without a retrieval runtime")
+
+        retrieved_chunks = runtime.retriever.retrieve(arguments["query"])
+        return runtime.context_builder.build(retrieved_chunks)
+
+    tool = get_tool(name)  # 通过工具名称取得真实的 Python 函数
 
     # ** 会把字典拆成“参数名=参数值”，再与程序控制的 repo_path 一起传给函数
     return tool(repo_path=repo_path, **arguments)

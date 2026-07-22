@@ -4,6 +4,15 @@ from pathlib import Path  # 导入 Path，用对象表示文件夹路径
 from .exceptions import AgentLimitError  # 导入项目级限制异常，CLI 不依赖 LangGraph 的异常类型
 from .langgraph_agent import run_graph_agent  # 导入 LangGraph runner，将自然语言问题交给编译图处理
 from .model_router import ModelRouter  # 导入模型路由，供整个 CLI 会话重复使用
+from .retrieval import (
+    ContextBuilder,
+    HybridRetriever,
+    PythonAstChunker,
+    RepositoryIndex,
+    RepositoryScanner,
+    SentenceTransformerEmbedder,
+    default_index_path,
+)
 from .tools.file_tools import list_files, read_file, search_text  # 导入三个只读工具
 
 
@@ -33,10 +42,12 @@ def show_tool_call(name: str, arguments: dict) -> None:
     print(f"using tool: {name} {arguments}")
 
 
-def main() -> None:  # 定义 CLI 程序的主函数
-    repo_path = parse_args()  # 解析参数并得到目标仓库路径
-    router = ModelRouter()  # 创建一次模型路由；真正的 API 请求发生在 run_graph_agent 内部
-
+def run_cli_session(
+    repo_path: Path,
+    router: ModelRouter,
+    retriever: HybridRetriever,
+    context_builder: ContextBuilder,
+) -> None:
     print("repo-agent started")  # 提示用户程序已经启动
     print(f"target repo: {repo_path}")  # 显示 Agent 将要读取的仓库
 
@@ -94,9 +105,37 @@ def main() -> None:  # 定义 CLI 程序的主函数
                 question=question,  # 传入用户当前问题
                 router=router,  # 复用 CLI 启动时创建的模型路由
                 on_tool_call=show_tool_call,  # 将终端显示函数交给图中的工具节点按需调用
+                retriever=retriever,
+                context_builder=context_builder,
             )
         except AgentLimitError as error:
             print(f"error: {error}")  # 显示可理解的项目错误，不暴露 LangGraph 内部异常
             continue  # 只结束当前问题，继续等待下一次 CLI 输入
 
         print(answer)  # 输出 Agent 根据仓库真实内容生成的最终回答
+
+
+def main() -> None:  # 定义 CLI 程序的主函数
+    repo_path = parse_args()  # 解析参数并得到目标仓库路径
+    router = ModelRouter()  # 创建一次模型路由；真正的 API 请求发生在 run_graph_agent 内部
+    embedder = SentenceTransformerEmbedder(local_files_only=True)
+
+    with RepositoryIndex(default_index_path(repo_path)) as index:
+        summary = index.update(
+            repo_path=repo_path,
+            scanner=RepositoryScanner(),
+            chunker=PythonAstChunker(),
+            embedder=embedder,
+        )
+        print(
+            "repository index ready: "
+            f"{summary.indexed_chunks} changed chunks, "
+            f"{summary.unchanged_files} unchanged files"
+        )
+
+        run_cli_session(
+            repo_path=repo_path,
+            router=router,
+            retriever=HybridRetriever(index=index, embedder=embedder),
+            context_builder=ContextBuilder(),
+        )

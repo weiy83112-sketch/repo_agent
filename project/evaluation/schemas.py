@@ -9,6 +9,8 @@ EvaluationCategory = Literal[
     "related_files",
 ]
 
+HumanCorrectness = Literal[0, 1, 2]
+
 
 # 描述一条评测题字典必须拥有的键，以及每个值的数据类型 就是schemas
 class EvaluationCase(TypedDict):
@@ -24,3 +26,27 @@ class EvaluationCase(TypedDict):
     expected_symbols: list[str]
     # 标记题目属于入口、功能位置、调用链或相关文件中的哪一类
     category: EvaluationCategory
+
+
+class EvaluationScore(TypedDict):
+    """一条题目结果与标准证据对齐后的可复用评分记录。"""
+
+    case_id: str
+    repository: str
+    category: EvaluationCategory
+    stage: str
+    capability: str
+    model: str
+    completed: bool
+    matched_files: list[str]
+    missing_files: list[str]
+    file_coverage: float
+    matched_symbols: list[str]
+    missing_symbols: list[str]
+    symbol_coverage: float | None
+    evidence_coverage: float
+    full_evidence: bool
+    tool_call_count: int
+    elapsed_seconds: float
+    error_type: str | None
+    human_correctness: HumanCorrectness | None

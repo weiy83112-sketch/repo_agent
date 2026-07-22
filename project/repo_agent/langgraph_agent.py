@@ -8,8 +8,17 @@ from langgraph.graph.state import CompiledStateGraph
 
 from repo_agent.exceptions import AgentLimitError, AgentResponseError
 from repo_agent.model_router import ModelCapability, ModelRouter
+from repo_agent.retrieval import ContextBuilder, HybridRetriever
 from repo_agent.state import AgentState, create_initial_state
-from repo_agent.tools.registry import TOOL_SCHEMAS, execute_tool
+from repo_agent.tools.registry import RAG_TOOL_SCHEMAS, TOOL_SCHEMAS, execute_tool
+from repo_agent.tools.runtime import ToolRuntime
+
+
+RAG_CONTEXT_INSTRUCTION = (
+    "Use the following repository evidence when answering. "
+    "Treat it as relevant context, verify uncertain details with read-only tools, "
+    "and cite repository-relative paths and line numbers when possible."
+)
 
 
 # 接收现有 ModelRouter，并开始构建 LangGraph Agent
@@ -18,6 +27,8 @@ def build_graph(
     router: ModelRouter,
     capability: ModelCapability = "complex",
     on_tool_call: Callable[[str, dict], None] | None = None,
+    retriever: HybridRetriever | None = None,
+    context_builder: ContextBuilder | None = None,
 ) -> CompiledStateGraph:
     # 创建一个 LangGraph 构建器，并让整张图使用 AgentState 管理共享状态
     graph_builder = StateGraph(AgentState)
@@ -28,11 +39,42 @@ def build_graph(
         "simple": router.simple,
     }[capability]
 
+    if (retriever is None) != (context_builder is None):
+        raise ValueError("retriever and context_builder must be provided together")
+
+    rag_enabled = retriever is not None
+    tool_schemas = RAG_TOOL_SCHEMAS if rag_enabled else TOOL_SCHEMAS
+    tool_runtime = ToolRuntime(
+        repo_path=repo_path,
+        retriever=retriever,
+        context_builder=context_builder,
+    )
+
+    def retrieve_context(state: AgentState) -> dict:
+        if retriever is None or context_builder is None:
+            return {"retrieved_context": ""}
+
+        retrieved_chunks = retriever.retrieve(state["question"])
+        return {
+            "retrieved_context": context_builder.build(retrieved_chunks),
+        }
+
     # call_model 是第一个节点：接收当前完整 State，调用一次模型
     def call_model(state: AgentState) -> dict:
+        model_messages = state["messages"]
+        if rag_enabled:
+            context_message = {
+                "role": "system",
+                "content": (
+                    f"{RAG_CONTEXT_INSTRUCTION}\n\n"
+                    f"{state['retrieved_context']}"
+                ),
+            }
+            model_messages = [context_message, *state["messages"]]
+
         response = model_call(
-            messages=state["messages"],
-            tools=TOOL_SCHEMAS,
+            messages=model_messages,
+            tools=tool_schemas,
         )
         message = response.choices[0].message
 
@@ -71,6 +113,7 @@ def build_graph(
                     repo_path=repo_path,
                     name=function["name"],
                     arguments=arguments,
+                    runtime=tool_runtime,
                 )
 
                 if isinstance(result, str):
@@ -93,14 +136,21 @@ def build_graph(
             "messages": tool_messages,
         }
 
+    if rag_enabled:
+        graph_builder.add_node("retrieve_context", retrieve_context)
+
     # 将普通 Python 函数登记为图中的 call_model 节点
     graph_builder.add_node("call_model", call_model)
 
     # 将工具执行函数登记为条件分支可以到达的 execute_tools 节点
     graph_builder.add_node("execute_tools", execute_tools)
 
-    # 指定图的入口：运行开始后，第一个执行 call_model 节点
-    graph_builder.add_edge(START, "call_model")
+    # RAG 图先检索一次；固定 Baseline 仍然直接进入模型节点。
+    if rag_enabled:
+        graph_builder.add_edge(START, "retrieve_context")
+        graph_builder.add_edge("retrieve_context", "call_model")
+    else:
+        graph_builder.add_edge(START, "call_model")
 
     # call_model 之后不固定走一条边，而是根据 route_after_model 的结果选择分支
     graph_builder.add_conditional_edges(
@@ -129,6 +179,8 @@ def run_graph_agent(
     capability: ModelCapability = "complex",
     max_graph_steps: int = 20,
     on_tool_call: Callable[[str, dict], None] | None = None,
+    retriever: HybridRetriever | None = None,
+    context_builder: ContextBuilder | None = None,
 ) -> str:
     # 根据当前仓库路径和模型路由创建可 invoke 的运行图
     graph = build_graph(
@@ -136,6 +188,8 @@ def run_graph_agent(
         router=router,
         capability=capability,
         on_tool_call=on_tool_call,
+        retriever=retriever,
+        context_builder=context_builder,
     )
 
     # 将用户问题转换成 LangGraph 需要的初始 State

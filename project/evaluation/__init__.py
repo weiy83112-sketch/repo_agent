@@ -6,11 +6,12 @@ from .loader import (
     validate_evaluation_evidence,
 )
 from .repositories import RepositoryDataError, load_repository_paths
-from .schemas import EvaluationCase, EvaluationCategory
+from .schemas import EvaluationCase, EvaluationCategory, EvaluationScore
 
 __all__ = [
     "EvaluationCase",
     "EvaluationCategory",
+    "EvaluationScore",
     "EvaluationDataError",
     "RepositoryDataError",
     "load_evaluation_cases",
